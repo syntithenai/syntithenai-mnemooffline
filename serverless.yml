@@ -1,0 +1,50 @@
+service: lambda-oauth-login-example
+
+org: syntithenai
+app: loginsystem
+
+package:
+  include:
+    - react-login-example/build/index.html
+    
+custom:
+  output:
+    file: ./stack.json
+  serverless-offline:
+    host: localhost       
+	# SSL for development
+	#  openssl genrsa 2048 > key.pem && openssl req -x509 -days 1000 -new -key key.pem -out cert.pem
+	# OR
+	# sudo certbot certonly --standalone -d domain.org -d domain.org
+    httpsProtocol: "certs"  # folder containing certificates
+    httpPort: 5001
+    lambdaPort: 3003
+      
+provider:
+  name: aws
+  runtime: nodejs12.x
+  environment:
+    LAMBDA_REST_GATEWAY_OFFLINE: https://localhost:5001/dev   # see custom.serverless-offline config
+    LAMBDA_REST_GATEWAY:
+      Fn::Join:
+        - ""
+        - - "https://"
+          - Ref: "ApiGatewayRestApi"
+          - ".execute-api.${opt:region, self:provider.region}.amazonaws.com/${opt:stage, self:provider.stage}"
+    LOGIN_LAMBDA_REST_GATEWAY: ${output:loginsystem.LAMBDARESTGATEWAY}
+    LOGIN_LAMBDA_REST_GATEWAY_OFFLINE: ${output:loginsystem.LAMBDARESTGATEWAYOFFLINE}
+
+        
+functions:
+  handler:
+    handler: handler.handler
+    events:
+      - http:
+          path: /{pathvar+}
+          method: ANY
+
+plugins:
+  - serverless-offline
+  - serverless-stack-output
+  - serverless-dotenv-plugin
+
